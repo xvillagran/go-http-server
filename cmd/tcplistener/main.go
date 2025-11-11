@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"net"
+
+	"httpproto/internal/request"
 )
 
 func main() {
@@ -19,39 +19,17 @@ func main() {
 		if err != nil {
 			log.Fatal("Cannot accept messages from TCP connection")
 		}
-		fmt.Println("Connections are being accepted")
-		for line := range getLinesChannel(conn) {
-			fmt.Println(line)
+		r, err := request.RequestFromReader(conn)
+		if err != nil {
+			fmt.Println("Could not read HTTP request")
 		}
+		outputRequest(r)
 	}
-
 }
 
-func getLinesChannel(f io.ReadCloser) <-chan string {
-	c := make(chan string)
-	go func() {
-		defer func(c chan string) {
-			close(c)
-			fmt.Println("Closing channel")
-		}(c)
-		defer f.Close()
-		var currentLine string
-		for {
-			b := make([]byte, 8)
-			_, err := f.Read(b)
-			if err == io.EOF {
-				c <- currentLine
-				break
-			}
-			if n := bytes.Index(b, []byte("\n")); n > -1 {
-				currentLine += string(b[:n])
-				c <- currentLine
-				currentLine = string(b[n+1:])
-				continue
-			}
-			currentLine += string(b)
-		}
-	}()
-
-	return c
+func outputRequest(r *request.Request) {
+	fmt.Println("Request Line:")
+	fmt.Printf("\tMethod: %s\n", r.RequestLine.Method)
+	fmt.Printf("\tTarget: %s\n", r.RequestLine.RequestTarget)
+	fmt.Printf("\tVersion: %s\n", r.RequestLine.HttpVersion)
 }
