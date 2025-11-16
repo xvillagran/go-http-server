@@ -34,19 +34,23 @@ const (
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	var r Request
+	buff := make([]byte, 8)
+	bfIdx := 0
 	for {
-		b := make([]byte, 8)
-		rd, err := reader.Read(b)
-		if rd == 0 || err == io.EOF {
+		read, err := reader.Read(buff[bfIdx:])
+		if read == 0 || err == io.EOF {
 			break
 		}
-		_, err = r.parse(b[:rd])
+		bfIdx += read
+		parsed, err := r.parse(buff[:bfIdx])
 		if err != nil {
 			return nil, err
 		}
 		if r.done() {
 			break
 		}
+		copy(buff, buff[parsed:bfIdx])
+		bfIdx = parsed
 	}
 
 	return &r, nil
